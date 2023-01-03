@@ -15,6 +15,7 @@ import (
 var content embed.FS
 
 var bootstrapServer string = "147.182.230.45:9092"
+var topic string = "recommend-requests"
 
 type RecommendRequest struct {
 	Name string `json:"name"`
@@ -65,7 +66,7 @@ func postRecommendRequest(request RecommendRequest) error {
 		log.Fatal("error marshalling JSON request, err = ", err)
 	}
 
-	err = handler.WriteMessage(string(message))
+	err = handler.WriteMessage(string(message), topic)
 	if err != nil {
 		log.Fatal("error writing message to Kafka, err = ", err)
 		return err

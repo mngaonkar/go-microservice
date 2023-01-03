@@ -17,7 +17,7 @@ func NewKafkaWriteHandler(bootstrapServer string) *KafkaWriteHandler {
 }
 
 // write message to Kafka queue
-func (k *KafkaWriteHandler) WriteMessage(message string) error {
+func (k *KafkaWriteHandler) WriteMessage(message string, topic string) error {
 	hostname, err := os.Hostname()
 	if err != nil {
 		log.Fatal("no hostname, error = ", err)
@@ -34,6 +34,27 @@ func (k *KafkaWriteHandler) WriteMessage(message string) error {
 		return err
 	} else {
 		log.Println("kafka producer initialized ", p)
+	}
+
+	delivery_channel := make(chan kafka.Event, 10000)
+	err = p.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{
+			Topic:     &topic,
+			Partition: kafka.PartitionAny,
+		},
+		Value: []byte(message),
+	}, delivery_channel)
+	if err != nil {
+		log.Fatal("error sending message, error = ", err)
+	} else {
+		log.Println("message sent -> ", message)
+	}
+	e := <-delivery_channel
+	m := e.(*kafka.Message)
+	if m.TopicPartition.Error != nil {
+		log.Fatal(m.TopicPartition.Error)
+	} else {
+		log.Println("message delivered")
 	}
 
 	return nil
