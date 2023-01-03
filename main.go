@@ -8,10 +8,13 @@ import (
 	"net/http"
 
 	"github.com/urfave/negroni"
+	kafka "microservice.mngaonkar.com/kafka_request_handler"
 )
 
 //go:embed static/*
 var content embed.FS
+
+var bootstrapServer string = "147.182.230.45:9092"
 
 type RecommendRequest struct {
 	Name string `json:"name"`
@@ -52,6 +55,22 @@ func recommend(w http.ResponseWriter, r *http.Request) {
 // post request to kafka
 func postRecommendRequest(request RecommendRequest) error {
 	log.Printf("received recommendation like %s", request.Name)
+	handler := kafka.NewKafkaWriteHandler(bootstrapServer)
+	if handler != nil {
+		log.Fatal("failed to create Kafka write handler")
+	}
+
+	message, err := json.Marshal(request)
+	if err != nil {
+		log.Fatal("error marshalling JSON request, err = ", err)
+	}
+
+	err = handler.WriteMessage(string(message))
+	if err != nil {
+		log.Fatal("error writing message to Kafka, err = ", err)
+		return err
+	}
+
 	return nil
 }
 
