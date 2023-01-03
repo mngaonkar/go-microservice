@@ -19,7 +19,12 @@ type RecommendRequest struct {
 
 // send single page application to client
 func index(w http.ResponseWriter, r *http.Request) {
-	rawFile, _ := StaticFiles.ReadFile("index.html")
+	log.Println("request for index ", *r)
+	rawFile, err := StaticFiles.ReadFile("index.html")
+	if err != nil {
+		log.Fatal("error reading index.html")
+		return
+	}
 	w.Write(rawFile)
 }
 
