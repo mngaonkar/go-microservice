@@ -2,10 +2,8 @@ package main
 
 import (
 	"embed"
-	"io/fs"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/urfave/negroni"
 )
@@ -20,9 +18,9 @@ type RecommendRequest struct {
 // send single page application to client
 func index(w http.ResponseWriter, r *http.Request) {
 	log.Println("request for index ", *r)
-	rawFile, err := content.ReadFile("index.html")
+	rawFile, err := content.ReadFile("static/index.html")
 	if err != nil {
-		log.Fatal("error reading index.html")
+		log.Fatal("error reading index.html, err = ", err)
 		return
 	}
 	w.Write(rawFile)
@@ -45,9 +43,8 @@ func postRecommendRequest(request RecommendRequest) error {
 
 func main() {
 	mux := http.NewServeMux()
-	var fs fs.FS = os.DirFS("static")
-	fileServer := http.FileServer(http.FS(fs))
-	mux.Handle("/static", fileServer)
+	fileServer := http.FileServer(http.Dir("static"))
+	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
 	mux.HandleFunc("/", index)
 	mux.HandleFunc("/v1/recommend", recommend)
 

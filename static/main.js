@@ -1,4 +1,4 @@
-const url = "portal.altbox.online:3000"
+const url = ""
 const endpoint = "/v1/recommender"
 
 // click handler for recommend button
