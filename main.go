@@ -2,6 +2,8 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -12,7 +14,7 @@ import (
 var content embed.FS
 
 type RecommendRequest struct {
-	name string
+	Name string `json:"name"`
 }
 
 // send single page application to client
@@ -28,9 +30,20 @@ func index(w http.ResponseWriter, r *http.Request) {
 
 // send recommendation
 func recommend(w http.ResponseWriter, r *http.Request) {
+	log.Println("recommend request received, r = ", *r)
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatal("error reading POST payload, err = ", err)
+		return
+	}
+
 	var request RecommendRequest
-	request.name = "titanic"
-	err := postRecommendRequest(request)
+	err = json.Unmarshal(body, &request)
+	if err != nil {
+		log.Fatal("error parsing POST payload, err = ", err)
+		return
+	}
+	err = postRecommendRequest(request)
 	if err != nil {
 		log.Fatal("error sending request to Kafka")
 	}
@@ -38,6 +51,7 @@ func recommend(w http.ResponseWriter, r *http.Request) {
 
 // post request to kafka
 func postRecommendRequest(request RecommendRequest) error {
+	log.Printf("received recommendation like %s", request.Name)
 	return nil
 }
 
@@ -46,7 +60,7 @@ func main() {
 	fileServer := http.FileServer(http.Dir("static"))
 	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
 	mux.HandleFunc("/", index)
-	mux.HandleFunc("/v1/recommend", recommend)
+	mux.HandleFunc("/v1/recommender", recommend)
 
 	n := negroni.Classic()
 	n.UseHandler(mux)
