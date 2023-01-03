@@ -57,7 +57,7 @@ func recommend(w http.ResponseWriter, r *http.Request) {
 func postRecommendRequest(request RecommendRequest) error {
 	log.Printf("received recommendation like %s", request.Name)
 	handler := kafka.NewKafkaWriteHandler(bootstrapServer)
-	if handler != nil {
+	if handler == nil {
 		log.Fatal("failed to create Kafka write handler")
 	}
 
