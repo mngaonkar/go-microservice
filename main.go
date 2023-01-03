@@ -10,8 +10,8 @@ import (
 	"github.com/urfave/negroni"
 )
 
-//go:embed all:static
-var StaticFiles embed.FS
+//go:embed static/*
+var content embed.FS
 
 type RecommendRequest struct {
 	name string
@@ -20,7 +20,7 @@ type RecommendRequest struct {
 // send single page application to client
 func index(w http.ResponseWriter, r *http.Request) {
 	log.Println("request for index ", *r)
-	rawFile, err := StaticFiles.ReadFile("index.html")
+	rawFile, err := content.ReadFile("index.html")
 	if err != nil {
 		log.Fatal("error reading index.html")
 		return
