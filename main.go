@@ -15,11 +15,8 @@ import (
 var content embed.FS
 
 var bootstrapServer string = "147.182.230.45:9092"
-var topic string = "recommend-requests"
-
-type RecommendRequest struct {
-	Name string `json:"name"`
-}
+var request_topic string = "recommend-requests"
+var response_topic string = "recommend-responses"
 
 // send single page application to client
 func index(w http.ResponseWriter, r *http.Request) {
@@ -32,8 +29,30 @@ func index(w http.ResponseWriter, r *http.Request) {
 	w.Write(rawFile)
 }
 
+// get recommendation response
+func getRecommendResponse(w http.ResponseWriter, r *http.Request) {
+	log.Println("recommend get response received, r = ", *r)
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatal("error reading POST payload, err = ", err)
+		return
+	}
+
+	var request GetRecommendResponse
+	err = json.Unmarshal(body, &request)
+	if err != nil {
+		log.Fatal("error parsing POST payload, err = ", err)
+		return
+	}
+
+	// send recommendation response request
+	if r.Method == http.MethodPost {
+
+	}
+}
+
 // send recommendation
-func recommend(w http.ResponseWriter, r *http.Request) {
+func sendRecommendRequest(w http.ResponseWriter, r *http.Request) {
 	log.Println("recommend request received, r = ", *r)
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -41,20 +60,47 @@ func recommend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var request RecommendRequest
+	var request SendRecommendRequest
 	err = json.Unmarshal(body, &request)
 	if err != nil {
 		log.Fatal("error parsing POST payload, err = ", err)
 		return
 	}
-	err = postRecommendRequest(request)
-	if err != nil {
-		log.Fatal("error sending request to Kafka")
+
+	// send recomendation request
+	if r.Method == http.MethodPost {
+		err = postRecommendRequest(request)
+		if err != nil {
+			log.Fatal("error sending request to Kafka")
+		}
+	} else {
+		log.Fatal("invalid request")
 	}
 }
 
+func postRecommendResponse(request GetRecommendResponse) error {
+	log.Printf("received get response request for %s", request.Name)
+	handler := kafka.NewKafkaWriteHandler(bootstrapServer)
+	if handler == nil {
+		log.Fatal("failed to create Kafka write handler")
+	}
+
+	message, err := json.Marshal(request)
+	if err != nil {
+		log.Fatal("error marshalling JSON request, err = ", err)
+	}
+
+	err = handler.WriteMessage(string(message), response_topic)
+	if err != nil {
+		log.Fatal("error writing message to Kafka, err = ", err)
+		return err
+	}
+
+	return nil
+}
+
 // post request to kafka
-func postRecommendRequest(request RecommendRequest) error {
+func postRecommendRequest(request SendRecommendRequest) error {
 	log.Printf("received recommendation like %s", request.Name)
 	handler := kafka.NewKafkaWriteHandler(bootstrapServer)
 	if handler == nil {
@@ -66,7 +112,7 @@ func postRecommendRequest(request RecommendRequest) error {
 		log.Fatal("error marshalling JSON request, err = ", err)
 	}
 
-	err = handler.WriteMessage(string(message), topic)
+	err = handler.WriteMessage(string(message), request_topic)
 	if err != nil {
 		log.Fatal("error writing message to Kafka, err = ", err)
 		return err
@@ -80,7 +126,8 @@ func main() {
 	fileServer := http.FileServer(http.Dir("static"))
 	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
 	mux.HandleFunc("/", index)
-	mux.HandleFunc("/v1/recommender", recommend)
+	mux.HandleFunc("/v1/recommender/request", sendRecommendRequest)
+	mux.HandleFunc("/v1/recommender/response", getRecommendResponse)
 
 	n := negroni.Classic()
 	n.UseHandler(mux)
